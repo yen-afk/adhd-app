@@ -69,16 +69,17 @@ html,body {
 .screens { flex:1; overflow:hidden; position:relative; }
 .scr {
   position:absolute; inset:0;
-  display:none;
-  flex-direction:column;
+  display:flex; flex-direction:column;
   overflow-y:auto; -webkit-overflow-scrolling:touch;
   background:var(--bg);
-  opacity:0;
-  transition:opacity .18s ease;
+  visibility:hidden;
+  pointer-events:none;
+  z-index:0;
 }
 .scr.active {
-  display:flex;
-  opacity:1;
+  visibility:visible;
+  pointer-events:all;
+  z-index:1;
 }
 
 /* ── TOP BAR ─────────────────────────────────────── */
@@ -724,11 +725,20 @@ const BNMAP={focus:'bn-focus',tasks:'bn-tasks',dump:'bn-dump',stats:'bn-stats'};
 let cur='focus';
 function nav(id,bnEl){
   if(id===cur)return;
-  document.getElementById('scr-'+cur)?.classList.remove('active');
-  document.getElementById('scr-'+id)?.classList.add('active');
+  // Hide current screen
+  const prevScr=document.getElementById('scr-'+cur);
+  if(prevScr) prevScr.classList.remove('active');
+  // Show new screen
+  const nextScr=document.getElementById('scr-'+id);
+  if(nextScr){
+    nextScr.classList.add('active');
+    nextScr.scrollTop=0;  // reset scroll position
+  }
   cur=id;
+  // Update bottom nav
   Object.values(BNMAP).forEach(b=>document.getElementById(b)?.classList.remove('on'));
   if(BNMAP[id]) document.getElementById(BNMAP[id])?.classList.add('on');
+  // Render correct screen
   if(id==='stats')renderStats();
   if(id==='tasks')renderTasks();
   if(id==='focus')renderFocus();
