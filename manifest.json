@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="One Task">
+<meta name="theme-color" content="#0D2B2B">
+<meta name="description" content="One task at a time. Brain dump everything, then focus on one thing. Built for ADHD brains.">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<title>One Task — ADHD Focus</title>
+<style>
+/* ── RESEARCH-BACKED ADHD COLOUR THEME ──────────────────────────
+   NHS / Oxford Health: soft blues, greens, neutrals for ADHD
+   Blue → lowers heart rate, reduces anxiety
+   Teal/Sage → focus, calm, nature-linked
+   Warm sand → grounding, low contrast background             */
+:root {
+  --bg:        #0D2B2B;   /* deep ocean — calm, grounding     */
+  --bg2:       #112F2F;   /* slightly lighter dark teal       */
+  --bg3:       #163838;   /* card surface                     */
+  --card:      #1A4040;   /* elevated card                    */
+  --teal:      #2A9D8F;   /* primary action — calming teal    */
+  --teal-lt:   #5BBFB3;   /* hover/accent teal                */
+  --teal-dk:   #1B7A6E;   /* pressed state                    */
+  --sage:      #7AAF86;   /* secondary accent — sage green    */
+  --sage-lt:   #A8CDB0;   /* light sage                       */
+  --sand:      #E8D5B0;   /* warm sand — task text highlight  */
+  --sand-lt:   #F5EDD8;   /* very light sand                  */
+  --coral:     #E07060;   /* gentle alert — not harsh red     */
+  --gold:      #C4A355;   /* streak/achievement gold          */
+  --white:     #F0F8F7;   /* warm white — not harsh           */
+  --text:      #DCF0EE;   /* primary text                     */
+  --text2:     #8BBDB8;   /* secondary text                   */
+  --text3:     #4D8480;   /* tertiary/placeholder             */
+  --border:    rgba(42,157,143,0.18);
+  --border2:   rgba(42,157,143,0.32);
+  --green:     #52B788;   /* success green                    */
+  --safe-top:  env(safe-area-inset-top, 0px);
+  --safe-bot:  env(safe-area-inset-bottom, 0px);
+  --r:         16px;
+  --r-sm:      10px;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg:    #EDF7F6; --bg2: #E0F2F0; --bg3: #CCEAE7;
+    --card:  #FFFFFF; --border: rgba(42,157,143,0.15);
+    --border2: rgba(42,157,143,0.30);
+    --text:  #0D3B36; --text2: #2A7A72; --text3: #4D9890;
+  }
+}
+
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html,body {
+  height:100%; overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg); color:var(--text);
+  width:100%; max-width:100%;
+  display:flex; flex-direction:column;
+  height:100dvh; height:-webkit-fill-available;
+  user-select:none;
+}
+
+/* ── SCREENS ─────────────────────────────────────── */
+.screens { flex:1; overflow:hidden; position:relative; }
+.scr {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  transform:translateX(100%);
+  transition:transform .30s cubic-bezier(.4,0,.2,1);
+  background:var(--bg); will-change:transform;
+}
+.scr.active  { transform:translateX(0); }
+.scr.prev    { transform:translateX(-25%); }
+
+/* ── TOP BAR ─────────────────────────────────────── */
+.topbar {
+  padding:calc(var(--safe-top) + 14px) 18px 12px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0; border-bottom:0.5px solid var(--border);
+  background:var(--bg);
+}
+.topbar-left h1 { font-size:16px; font-weight:600; color:var(--text); }
+.topbar-left p  { font-size:11px; color:var(--text3); margin-top:1px; }
+.icon-btn {
+  width:36px; height:36px; border-radius:50%;
+  background:var(--bg3); border:0.5px solid var(--border2);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  color:var(--text2); font-size:18px; transition:background .15s;
+}
+.icon-btn:active { background:var(--card); }
+
+/* ── BOTTOM NAV ──────────────────────────────────── */
+.botnav {
+  display:flex; background:var(--bg2);
+  border-top:0.5px solid var(--border);
+  padding-bottom:var(--safe-bot); flex-shrink:0;
+}
+.bn {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; gap:2px; padding:9px 4px 7px;
+  background:none; border:none; cursor:pointer;
+}
+.bn-i { font-size:21px; color:var(--text3); transition:color .15s; }
+.bn-l { font-size:10px; color:var(--text3); transition:color .15s; font-weight:500; }
+.bn.on .bn-i, .bn.on .bn-l { color:var(--teal); }
+
+/* ── FOCUS SCREEN ────────────────────────────────── */
+.focus-wrap {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:20px 22px calc(var(--safe-bot)+16px); gap:18px; width:100%;
+}
+.task-badge {
+  font-size:11px; font-weight:600; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--text3);
+}
+.task-card {
+  width:100%; background:var(--card);
+  border:0.5px solid var(--border2); border-radius:var(--r);
+  padding:24px 20px; text-align:center; position:relative; overflow:hidden;
+}
+.task-card-glow {
+  position:absolute; top:-30px; left:50%; transform:translateX(-50%);
+  width:180px; height:80px;
+  background:radial-gradient(ellipse,rgba(42,157,143,.20) 0%,transparent 70%);
+  pointer-events:none;
+}
+.task-txt { font-size:21px; font-weight:500; color:var(--sand); line-height:1.45; position:relative; }
+.task-empty { font-size:16px; color:var(--text3); line-height:1.65; }
+
+/* ── TIMER ───────────────────────────────────────── */
+.ring-wrap { position:relative; width:155px; height:155px; flex-shrink:0; }
+.ring-svg  { transform:rotate(-90deg); }
+.ring-track{ fill:none; stroke:var(--bg3); stroke-width:9; }
+.ring-fill { fill:none; stroke:var(--teal); stroke-width:9; stroke-linecap:round;
+             transition:stroke-dashoffset 1s linear;
+             stroke-dasharray:440; stroke-dashoffset:0; }
+.ring-fill.alert { stroke:var(--coral); }
+.ring-center {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.ring-time  { font-size:34px; font-weight:700; color:var(--text); letter-spacing:-1px; }
+.ring-label { font-size:11px; color:var(--text3); margin-top:1px; }
+
+/* ── PRESETS ─────────────────────────────────────── */
+.presets { display:flex; gap:7px; }
+.preset {
+  flex:1; padding:7px 4px; text-align:center; border-radius:20px;
+  border:0.5px solid var(--border); background:var(--bg3);
+  color:var(--text3); font-size:12px; font-weight:600; cursor:pointer;
+  transition:all .15s;
+}
+.preset.on  { background:var(--teal-dk); color:var(--white); border-color:var(--teal); }
+.preset:active { transform:scale(.96); }
+
+/* ── TIMER CONTROLS ──────────────────────────────── */
+.timer-controls { display:flex; gap:14px; align-items:center; }
+.t-btn {
+  width:50px; height:50px; border-radius:50%;
+  background:var(--bg3); border:0.5px solid var(--border2);
+  color:var(--text2); font-size:20px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s;
+}
+.t-btn:active { transform:scale(.93); }
+.t-btn.play {
+  width:66px; height:66px; font-size:26px;
+  background:var(--teal); border-color:var(--teal); color:white;
+}
+.t-btn.play:active { background:var(--teal-dk); }
+
+/* ── ACTIONS ─────────────────────────────────────── */
+.action-row { display:flex; gap:10px; width:100%; }
+.act {
+  flex:1; padding:13px 8px; border-radius:var(--r-sm);
+  border:0.5px solid var(--border2); background:var(--bg3);
+  color:var(--text2); font-size:13px; font-weight:600;
+  cursor:pointer; transition:all .15s; text-align:center;
+}
+.act:active { transform:scale(.97); }
+.act.done { background:var(--green); color:#062012; border-color:var(--green); }
+.act.skip { color:var(--text3); }
+
+/* ── STREAK ──────────────────────────────────────── */
+.streak-row {
+  display:flex; align-items:center; gap:12px;
+  background:var(--bg3); border-radius:var(--r-sm);
+  padding:11px 16px; width:100%; border:0.5px solid var(--border);
+}
+.streak-num { font-size:26px; font-weight:700; color:var(--gold); }
+.streak-sub { font-size:12px; color:var(--text2); }
+.streak-dots { display:flex; gap:5px; margin-left:auto; }
+.s-dot { width:10px; height:10px; border-radius:50%; background:var(--bg2); border:0.5px solid var(--border); transition:background .3s; }
+.s-dot.lit { background:var(--gold); border-color:var(--gold); }
+
+/* ── TASKS SCREEN ────────────────────────────────── */
+.list-wrap { padding:0 16px 120px; }
+.sec-lbl {
+  font-size:11px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text3); padding:16px 2px 8px;
+}
+.t-item {
+  display:flex; align-items:center; gap:12px;
+  padding:13px 14px; background:var(--card);
+  border:0.5px solid var(--border); border-radius:var(--r-sm);
+  margin-bottom:8px; cursor:pointer; transition:all .15s; position:relative;
+}
+.t-item:active { transform:scale(.98); }
+.t-item.focused { border-color:var(--teal); }
+.t-item.focused::before {
+  content:''; position:absolute; left:0; top:0; bottom:0;
+  width:3px; background:var(--teal); border-radius:var(--r-sm) 0 0 var(--r-sm);
+}
+.t-item.done { opacity:.45; }
+.t-check {
+  width:24px; height:24px; border-radius:50%;
+  border:1.5px solid var(--border2); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; color:transparent; transition:all .2s;
+}
+.t-item.done .t-check { background:var(--green); border-color:var(--green); color:white; }
+.t-txt { flex:1; font-size:15px; color:var(--text); line-height:1.4; }
+.t-item.done .t-txt { text-decoration:line-through; color:var(--text3); }
+.focus-tag {
+  font-size:10px; font-weight:600; padding:3px 9px;
+  background:var(--teal-dk); color:var(--teal-lt); border-radius:20px;
+}
+.t-rm { color:var(--text3); font-size:17px; flex-shrink:0; padding:2px 4px; }
+
+/* ── ADD BAR ─────────────────────────────────────── */
+.add-bar-wrap {
+  position:fixed; bottom:0; left:0; right:0; width:100%;
+  background:var(--bg2); border-top:0.5px solid var(--border);
+  padding:11px 16px calc(var(--safe-bot)+11px); z-index:20;
+}
+.add-bar { display:flex; gap:10px; align-items:center; }
+.add-in {
+  flex:1; background:var(--bg3); border:0.5px solid var(--border2);
+  border-radius:var(--r-sm); padding:11px 14px;
+  font-size:15px; color:var(--text); outline:none;
+  font-family:inherit; -webkit-appearance:none;
+}
+.add-in::placeholder { color:var(--text3); }
+.add-in:focus { border-color:var(--teal); }
+.add-btn {
+  width:44px; height:44px; border-radius:var(--r-sm);
+  background:var(--teal); border:none; color:white;
+  font-size:24px; cursor:pointer; display:flex;
+  align-items:center; justify-content:center; flex-shrink:0;
+  transition:background .15s;
+}
+.add-btn:active { background:var(--teal-dk); }
+
+/* ── DUMP SCREEN ─────────────────────────────────── */
+.dump-wrap { padding:0 18px 40px; flex:1; display:flex; flex-direction:column; gap:14px; }
+.dump-hint {
+  background:var(--card); border:0.5px solid var(--border);
+  border-radius:var(--r-sm); padding:14px 16px;
+  font-size:14px; color:var(--text2); line-height:1.65;
+}
+.dump-hint p+p { margin-top:8px; }
+.dump-ta {
+  flex:1; min-height:260px;
+  background:var(--bg3); border:0.5px solid var(--border2);
+  border-radius:var(--r); padding:16px; font-size:16px;
+  color:var(--text); line-height:1.7; resize:none; outline:none; font-family:inherit;
+}
+.dump-ta::placeholder { color:var(--text3); }
+.dump-ta:focus { border-color:var(--teal); }
+.dump-go {
+  width:100%; padding:15px; background:var(--teal); border:none;
+  border-radius:var(--r-sm); color:white; font-size:16px; font-weight:700;
+  cursor:pointer; transition:background .15s;
+}
+.dump-go:active { background:var(--teal-dk); }
+
+/* ── STATS SCREEN ────────────────────────────────── */
+.stats-wrap { padding:0 16px 40px; }
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:14px; }
+.stat-card {
+  background:var(--card); border:0.5px solid var(--border);
+  border-radius:var(--r-sm); padding:14px;
+}
+.sc-v { font-size:28px; font-weight:700; color:var(--teal-lt); }
+.sc-l { font-size:12px; color:var(--text3); margin-top:3px; }
+.mot-box {
+  background:var(--card); border:0.5px solid var(--border);
+  border-left:3px solid var(--teal); padding:11px 14px;
+  border-radius:0 var(--r-sm) var(--r-sm) 0; margin-bottom:12px;
+}
+.mot-lbl { font-size:10px; font-weight:600; color:var(--teal); text-transform:uppercase; letter-spacing:.07em; margin-bottom:4px; }
+.mot-txt  { font-size:14px; font-style:italic; color:var(--text2); line-height:1.55; }
+.hm-row   { display:flex; gap:4px; flex-wrap:wrap; margin-top:8px; }
+.hm-cell  { width:24px; height:24px; border-radius:5px; background:var(--bg3); border:0.5px solid var(--border); transition:background .3s; }
+.hm-cell.d1 { background:rgba(42,157,143,.22); }
+.hm-cell.d2 { background:rgba(42,157,143,.44); }
+.hm-cell.d3 { background:rgba(42,157,143,.72); }
+.hm-cell.d4 { background:var(--teal); }
+.pb-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 14px; border-bottom:0.5px solid var(--border);
+}
+.pb-row:last-child { border-bottom:none; }
+.pb-n { font-size:13px; color:var(--text); }
+.pb-v { font-size:14px; font-weight:700; color:var(--teal-lt); }
+
+/* ── SETTINGS ────────────────────────────────────── */
+.settings-wrap { padding:0 16px 40px; }
+.s-section {
+  background:var(--card); border:0.5px solid var(--border);
+  border-radius:var(--r-sm); margin-bottom:12px; overflow:hidden;
+}
+.s-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:0.5px solid var(--border);
+}
+.s-row:last-child { border-bottom:none; }
+.s-lbl { font-size:15px; color:var(--text); }
+.s-sub { font-size:12px; color:var(--text3); margin-top:2px; }
+.tog {
+  width:48px; height:28px; background:var(--bg3);
+  border-radius:14px; position:relative; cursor:pointer;
+  border:0.5px solid var(--border2); transition:background .2s; flex-shrink:0;
+}
+.tog.on { background:var(--teal); }
+.tog-k {
+  position:absolute; top:3px; left:3px; width:20px; height:20px;
+  border-radius:50%; background:white; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3);
+}
+.tog.on .tog-k { transform:translateX(20px); }
+.brand-footer {
+  text-align:center; padding:28px 0;
+  font-size:12px; color:var(--text3);
+}
+
+/* ── MINI GAME OVERLAY ───────────────────────────── */
+.game-overlay {
+  position:fixed; inset:0; z-index:60;
+  background:rgba(13,43,43,.97);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .3s;
+  padding:20px;
+}
+.game-overlay.show { opacity:1; pointer-events:all; }
+.game-title { font-size:22px; font-weight:700; color:var(--sand); margin-bottom:4px; text-align:center; }
+.game-sub   { font-size:14px; color:var(--text2); margin-bottom:24px; text-align:center; }
+/* Bubble pop game */
+.bubble-field {
+  width:100%; max-width:360px; height:340px;
+  position:relative; background:var(--bg3);
+  border-radius:var(--r); overflow:hidden;
+  border:0.5px solid var(--border2);
+}
+.bubble {
+  position:absolute; border-radius:50%;
+  cursor:pointer; transition:transform .1s;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; animation:float linear infinite;
+  will-change:transform;
+}
+.bubble:active { transform:scale(.85); }
+@keyframes float {
+  0%   { transform:translateY(0px); }
+  50%  { transform:translateY(-12px); }
+  100% { transform:translateY(0px); }
+}
+.bubble.popped { animation:pop .25s ease-out forwards; }
+@keyframes pop {
+  0%   { transform:scale(1); opacity:1; }
+  50%  { transform:scale(1.5); opacity:.5; }
+  100% { transform:scale(0); opacity:0; }
+}
+.game-score-row {
+  display:flex; align-items:center; justify-content:space-between;
+  width:100%; max-width:360px; margin-top:14px;
+}
+.game-score { font-size:32px; font-weight:700; color:var(--sand); }
+.game-timer { font-size:18px; color:var(--text2); }
+.game-btn-row { display:flex; gap:10px; margin-top:18px; width:100%; max-width:360px; }
+.game-btn {
+  flex:1; padding:13px; border-radius:var(--r-sm);
+  border:0.5px solid var(--border2); background:var(--bg3);
+  color:var(--text); font-size:15px; font-weight:600; cursor:pointer;
+  transition:all .15s;
+}
+.game-btn.primary { background:var(--teal); border-color:var(--teal); color:white; }
+.game-btn:active  { transform:scale(.97); }
+.game-result {
+  font-size:20px; font-weight:600; color:var(--sage-lt);
+  text-align:center; margin-top:8px; min-height:32px;
+}
+
+/* ── CELEBRATION OVERLAY ─────────────────────────── */
+.cel-overlay {
+  position:fixed; inset:0; z-index:50;
+  background:rgba(13,43,43,.94);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .3s; padding:32px;
+}
+.cel-overlay.show { opacity:1; pointer-events:all; }
+.cel-emoji  { font-size:70px; margin-bottom:14px; }
+.cel-title  { font-size:26px; font-weight:700; color:var(--text); margin-bottom:8px; }
+.cel-sub    { font-size:15px; color:var(--text2); text-align:center; line-height:1.55; margin-bottom:28px; }
+.cel-row    { display:flex; gap:10px; width:100%; max-width:320px; }
+.cel-btn {
+  flex:1; padding:14px; border-radius:var(--r-sm); border:none;
+  font-size:15px; font-weight:700; cursor:pointer; transition:all .15s;
+}
+.cel-btn.primary { background:var(--teal); color:white; }
+.cel-btn.secondary { background:var(--bg3); border:0.5px solid var(--border2); color:var(--text); }
+.cel-btn:active { transform:scale(.97); }
+
+/* ── TOAST ───────────────────────────────────────── */
+.toast {
+  position:fixed; bottom:calc(var(--safe-bot)+76px); left:50%;
+  transform:translateX(-50%);
+  background:var(--card); color:var(--text);
+  border:0.5px solid var(--border2);
+  padding:10px 22px; border-radius:20px; font-size:13px; font-weight:600;
+  opacity:0; transition:opacity .3s; pointer-events:none;
+  white-space:nowrap; z-index:100;
+}
+.toast.show { opacity:1; }
+
+/* ── INSTALL BANNER ──────────────────────────────── */
+.inst-bar {
+  display:none; align-items:center; gap:10px;
+  background:var(--teal-dk); padding:10px 16px;
+  border-bottom:0.5px solid var(--border); flex-shrink:0; width:100%;
+}
+.inst-bar.show { display:flex; }
+.inst-bar p { font-size:13px; color:white; flex:1; line-height:1.4; }
+.inst-bar p span { display:block; font-size:11px; color:rgba(255,255,255,.7); }
+.inst-btn {
+  padding:7px 14px; background:white; color:var(--teal-dk);
+  border:none; border-radius:var(--r-sm); font-size:13px; font-weight:700; cursor:pointer;
+}
+.inst-x { color:rgba(255,255,255,.6); font-size:20px; cursor:pointer; padding:2px; }
+</style>
+</head>
+<body>
+
+<div class="inst-bar" id="inst-bar">
+  <p>Add to home screen<span>Works offline · No subscription</span></p>
+  <button class="inst-btn" id="inst-btn">Install</button>
+  <span class="inst-x" id="inst-x">✕</span>
+</div>
+
+<div class="screens">
+
+<!-- ═══════════════ FOCUS SCREEN ═══════════════════ -->
+<div class="scr active" id="scr-focus">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>One Task</h1>
+      <p id="focus-sub">your focus companion</p>
+    </div>
+    <button class="icon-btn" onclick="nav('settings')" aria-label="Settings">⚙</button>
+  </div>
+  <div class="focus-wrap">
+    <div class="task-badge" id="task-badge">queue empty</div>
+    <div class="task-card" id="focus-card">
+      <div class="task-card-glow"></div>
+      <div class="task-txt" id="focus-txt">
+        <span class="task-empty">Tap + to add a task, or try Brain Dump ⚡ to capture everything at once.</span>
+      </div>
+    </div>
+    <div class="ring-wrap">
+      <svg class="ring-svg" width="155" height="155" viewBox="0 0 155 155">
+        <circle class="ring-track" cx="77.5" cy="77.5" r="70"/>
+        <circle class="ring-fill" id="ring" cx="77.5" cy="77.5" r="70"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-time" id="ring-time">25:00</div>
+        <div class="ring-label" id="ring-lbl">focus</div>
+      </div>
+    </div>
+    <div class="presets" id="presets">
+      <button class="preset" onclick="setPreset(15,this)">15m</button>
+      <button class="preset on" onclick="setPreset(25,this)">25m</button>
+      <button class="preset" onclick="setPreset(45,this)">45m</button>
+      <button class="preset" onclick="setPreset(60,this)">60m</button>
+    </div>
+    <div class="timer-controls">
+      <button class="t-btn" onclick="resetTimer()" aria-label="Reset" title="Reset">↺</button>
+      <button class="t-btn play" id="play-btn" onclick="toggleTimer()" aria-label="Start">▶</button>
+      <button class="t-btn" id="skip-t-btn" onclick="skipBreak()" aria-label="Skip" style="opacity:.38" disabled>⏭</button>
+    </div>
+    <div class="action-row">
+      <button class="act skip" onclick="skipTask()" id="skip-btn">↷ Skip</button>
+      <button class="act done" onclick="doneTask()" id="done-btn">✓ Done</button>
+    </div>
+    <div class="streak-row">
+      <div>
+        <div class="streak-num" id="streak-n">0</div>
+        <div class="streak-sub">day streak 🔥</div>
+      </div>
+      <div class="streak-dots" id="streak-dots"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TASKS SCREEN ═══════════════════ -->
+<div class="scr" id="scr-tasks">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Tasks</h1>
+      <p id="tasks-sub">0 remaining</p>
+    </div>
+    <button class="icon-btn" onclick="clearDone()" aria-label="Clear done" title="Clear completed">🗑</button>
+  </div>
+  <div class="list-wrap">
+    <div class="sec-lbl">Queue</div>
+    <div id="q-list"></div>
+    <div class="sec-lbl" id="done-lbl" style="display:none">Done today</div>
+    <div id="done-list"></div>
+  </div>
+  <div class="add-bar-wrap">
+    <div class="add-bar">
+      <input class="add-in" id="add-in" type="text" placeholder="Add a task…" maxlength="120"
+             onkeydown="if(event.key==='Enter'){addTask();event.preventDefault()}">
+      <button class="add-btn" onclick="addTask()" aria-label="Add">+</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ BRAIN DUMP ═════════════════════ -->
+<div class="scr" id="scr-dump">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Brain Dump</h1>
+      <p>get it all out, one line at a time</p>
+    </div>
+  </div>
+  <div class="dump-wrap">
+    <div class="dump-hint">
+      <p>Type every thought racing through your head — one thought per line. Don't organise. Don't judge. Just get it out.</p>
+      <p>Tap the button and every line becomes a task in your queue.</p>
+    </div>
+    <textarea class="dump-ta" id="dump-ta"
+      placeholder="Pay the electricity bill&#10;Call mum back&#10;Finish the project proposal&#10;Buy milk&#10;Email Sarah about Monday&#10;..."></textarea>
+    <button class="dump-go" onclick="processDump()">Add all to queue →</button>
+  </div>
+</div>
+
+<!-- ═══════════════ STATS SCREEN ═══════════════════ -->
+<div class="scr" id="scr-stats">
+  <div class="topbar">
+    <div class="topbar-left"><h1>Progress</h1><p>your focus history</p></div>
+  </div>
+  <div class="stats-wrap">
+    <div class="mot-box">
+      <div class="mot-lbl">Today's thought</div>
+      <div class="mot-txt" id="daily-mot">"Progress, not perfection."</div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="sc-v" id="st-today">0</div><div class="sc-l">done today</div></div>
+      <div class="stat-card"><div class="sc-v" id="st-total">0</div><div class="sc-l">all time</div></div>
+      <div class="stat-card"><div class="sc-v" id="st-streak">0</div><div class="sc-l">day streak 🔥</div></div>
+      <div class="stat-card"><div class="sc-v" id="st-focus">0</div><div class="sc-l">focus mins</div></div>
+    </div>
+    <div class="sec-lbl">Last 28 days</div>
+    <div class="stat-card" style="margin-bottom:12px"><div class="hm-row" id="heatmap"></div></div>
+    <div class="sec-lbl">Recent completions</div>
+    <div class="stat-card" id="recent-list" style="margin-bottom:14px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ SETTINGS SCREEN ════════════════ -->
+<div class="scr" id="scr-settings">
+  <div class="topbar">
+    <div class="topbar-left"><h1>Settings</h1></div>
+    <button class="icon-btn" onclick="nav('focus')" aria-label="Close">✕</button>
+  </div>
+  <div class="settings-wrap">
+    <div class="sec-lbl">Timer</div>
+    <div class="s-section">
+      <div class="s-row">
+        <div><div class="s-lbl">Auto-start breaks</div><div class="s-sub">Start 5-min break when focus ends</div></div>
+        <div class="tog" id="tog-autobreak" onclick="toggleSet('autobreak')"><div class="tog-k"></div></div>
+      </div>
+      <div class="s-row">
+        <div><div class="s-lbl">Vibrate on complete</div><div class="s-sub">Haptic when timer ends</div></div>
+        <div class="tog on" id="tog-vibrate" onclick="toggleSet('vibrate')"><div class="tog-k"></div></div>
+      </div>
+    </div>
+    <div class="sec-lbl">Rewards</div>
+    <div class="s-section">
+      <div class="s-row">
+        <div><div class="s-lbl">Mini game reward</div><div class="s-sub">Play bubble pop after completing a task</div></div>
+        <div class="tog on" id="tog-game" onclick="toggleSet('game')"><div class="tog-k"></div></div>
+      </div>
+      <div class="s-row">
+        <div><div class="s-lbl">Celebration screen</div><div class="s-sub">Show celebration when task is done</div></div>
+        <div class="tog on" id="tog-celebrate" onclick="toggleSet('celebrate')"><div class="tog-k"></div></div>
+      </div>
+      <div class="s-row">
+        <div><div class="s-lbl">Show streaks</div><div class="s-sub">Daily completion streak counter</div></div>
+        <div class="tog on" id="tog-streaks" onclick="toggleSet('streaks')"><div class="tog-k"></div></div>
+      </div>
+    </div>
+    <div class="sec-lbl">Data</div>
+    <div class="s-section">
+      <div class="s-row" onclick="doResetStreak()" style="cursor:pointer">
+        <div><div class="s-lbl">Reset streak</div><div class="s-sub">Start from zero</div></div>
+        <span style="color:var(--text3);font-size:18px">›</span>
+      </div>
+      <div class="s-row" onclick="doClearAll()" style="cursor:pointer">
+        <div><div class="s-lbl" style="color:var(--coral)">Clear all data</div><div class="s-sub">Wipe tasks, history, stats</div></div>
+        <span style="color:var(--text3);font-size:18px">›</span>
+      </div>
+    </div>
+    <div class="brand-footer">
+      <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:4px">Aeryn Studio</div>
+      <div>One Task — ADHD Focus App</div>
+      <div style="margin-top:4px;color:var(--teal)">aerynstudio.etsy.com</div>
+      <div style="margin-top:8px;font-style:italic;color:var(--text3)">"Beautifully on purpose."</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /screens -->
+
+<!-- ═══ BOTTOM NAV ═══════════════════════════════════ -->
+<div class="botnav">
+  <button class="bn on" id="bn-focus" onclick="nav('focus',this)"><span class="bn-i">◎</span><span class="bn-l">Focus</span></button>
+  <button class="bn" id="bn-tasks" onclick="nav('tasks',this)"><span class="bn-i">☰</span><span class="bn-l">Tasks</span></button>
+  <button class="bn" id="bn-dump"  onclick="nav('dump',this)"><span class="bn-i">⚡</span><span class="bn-l">Dump</span></button>
+  <button class="bn" id="bn-stats" onclick="nav('stats',this)"><span class="bn-i">◈</span><span class="bn-l">Progress</span></button>
+</div>
+
+<!-- ═══ MINI GAME OVERLAY — BUBBLE POP ═══════════════ -->
+<div class="game-overlay" id="game-overlay">
+  <div class="game-title">🫧 Bubble Pop!</div>
+  <div class="game-sub">You earned a break — pop as many as you can!</div>
+  <div class="bubble-field" id="bubble-field"></div>
+  <div class="game-score-row">
+    <div><div style="font-size:11px;color:var(--text3);margin-bottom:2px">SCORE</div><div class="game-score" id="g-score">0</div></div>
+    <div style="text-align:right"><div style="font-size:11px;color:var(--text3);margin-bottom:2px">TIME</div><div class="game-timer" id="g-timer">20s</div></div>
+  </div>
+  <div class="game-result" id="g-result"></div>
+  <div class="game-btn-row">
+    <button class="game-btn" onclick="closeGame()">Skip →</button>
+    <button class="game-btn primary" id="g-play-btn" onclick="startGame()">Play Again ↺</button>
+  </div>
+</div>
+
+<!-- ═══ CELEBRATION OVERLAY ══════════════════════════ -->
+<div class="cel-overlay" id="cel-overlay">
+  <div class="cel-emoji" id="cel-emoji">✅</div>
+  <div class="cel-title" id="cel-title">Task done!</div>
+  <div class="cel-sub"   id="cel-sub">Great work. On to the next one.</div>
+  <div class="cel-row">
+    <button class="cel-btn secondary" onclick="closeCel()">Keep going →</button>
+    <button class="cel-btn primary"   onclick="closeCelPlayGame()">🫧 Play a game</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ DATA ════════════════════════════════════════════
+const MOTS=[
+  "You don't have to do it all. Just do the next thing.",
+  "Done is better than perfect.",
+  "One task at a time. That's enough.",
+  "Progress, not perfection.",
+  "The hardest part is starting. You already did that.",
+  "Small steps still move you forward.",
+  "Clarity comes from action, not thought.",
+  "You've finished hard things before.",
+  "Focus is a skill. You're practising it right now.",
+  "Your brain is not broken. It just works differently.",
+  "Finish one thing. Then decide what's next.",
+  "Rest is part of the work.",
+  "Breathe. Focus. Move."
+];
+
+const CELS=[
+  {e:"✅",t:"Task done!",s:"That one's crossed off forever."},
+  {e:"⚡",t:"Nailed it!",s:"Your brain did the thing."},
+  {e:"🌿",t:"One down!",s:"Every done task counts."},
+  {e:"🎯",t:"Hit the target!",s:"You focused and finished."},
+  {e:"🔥",t:"On fire!",s:"Keep this energy going."},
+  {e:"💚",t:"Done!",s:"Be proud of that one."},
+];
+
+const BUBBLES_EMOJIS=["🫧","💙","🌊","🍃","💚","🌿","🫐","🌀","🩵","🐬","🦋","✨"];
+
+let ST={
+  tasks:[],
+  settings:{autobreak:false,vibrate:true,game:true,celebrate:true,streaks:true},
+  stats:{total:0,today:0,todayDate:'',streak:0,lastDate:'',focusMin:0,history:{}},
+  timer:{preset:25,running:false,secsLeft:25*60,mode:'focus'}
+};
+
+function save(){ try{localStorage.setItem('onetask-v2',JSON.stringify(ST));}catch(e){} }
+function load(){
+  try{
+    const d=localStorage.getItem('onetask-v2');
+    if(d){ const p=JSON.parse(d); ST={...ST,...p,timer:{...ST.timer,...(p.timer||{})}}; ST.timer.running=false; }
+    // Migrate old key
+    const old=localStorage.getItem('onetask');
+    if(old&&!d){ const p=JSON.parse(old); ST.tasks=p.tasks||[]; ST.stats={...ST.stats,...(p.stats||{})}; }
+  }catch(e){}
+  const today=new Date().toDateString();
+  if(ST.stats.todayDate!==today){ST.stats.today=0;ST.stats.todayDate=today;save();}
+}
+
+// ══ NAVIGATION ══════════════════════════════════════
+const BNMAP={focus:'bn-focus',tasks:'bn-tasks',dump:'bn-dump',stats:'bn-stats'};
+let cur='focus';
+function nav(id,bnEl){
+  if(id===cur)return;
+  document.getElementById('scr-'+cur)?.classList.add('prev');
+  setTimeout(()=>document.getElementById('scr-'+cur)?.classList.remove('prev'),350);
+  document.getElementById('scr-'+cur)?.classList.remove('active');
+  document.getElementById('scr-'+id)?.classList.add('active');
+  cur=id;
+  Object.values(BNMAP).forEach(b=>document.getElementById(b)?.classList.remove('on'));
+  if(BNMAP[id]) document.getElementById(BNMAP[id])?.classList.add('on');
+  if(id==='stats')renderStats();
+  if(id==='tasks')renderTasks();
+  if(id==='focus')renderFocus();
+}
+
+// ══ TASKS ════════════════════════════════════════════
+function active(){ return ST.tasks.filter(t=>!t.done); }
+function dones(){  return ST.tasks.filter(t=>t.done);  }
+function focused(){ return active()[0]||null; }
+
+function addTask(txt){
+  const inp=document.getElementById('add-in');
+  const t=(txt||inp?.value||'').trim();
+  if(!t)return;
+  ST.tasks.push({id:Date.now()+Math.random(),text:t,done:false,addedAt:Date.now()});
+  if(inp)inp.value='';
+  save();renderFocus();renderTasks();
+  showToast('Task added');
+}
+
+function skipTask(){
+  const a=active();
+  if(a.length<2){showToast('Nothing to skip to');return;}
+  const i=ST.tasks.indexOf(a[0]);
+  ST.tasks.splice(i,1);
+  const firstActive=ST.tasks.findIndex(t=>!t.done);
+  if(firstActive>=0)ST.tasks.splice(firstActive,0,a[0]);
+  else ST.tasks.push(a[0]);
+  save();renderFocus();renderTasks();
+  showToast('Skipped — next task up');
+}
+
+function doneTask(){
+  const t=focused();
+  if(!t){showToast('No task focused');return;}
+  t.done=true; t.doneAt=Date.now();
+  ST.stats.total++;ST.stats.today++;
+  const today=new Date().toDateString();
+  ST.stats.history[today]=(ST.stats.history[today]||0)+1;
+  const yest=new Date(Date.now()-86400000).toDateString();
+  if(ST.stats.lastDate===yest) ST.stats.streak++;
+  else if(ST.stats.lastDate!==today) ST.stats.streak=1;
+  ST.stats.lastDate=today;
+  stopTimer();resetTimer(false);
+  save();renderFocus();renderTasks();
+  if(ST.settings.vibrate&&navigator.vibrate)navigator.vibrate([50,30,80]);
+  if(ST.settings.celebrate) showCelebrate();
+  else if(ST.settings.game) showGame();
+}
+
+function clearDone(){
+  ST.tasks=ST.tasks.filter(t=>!t.done);
+  save();renderTasks();renderFocus();
+  showToast('Cleared completed tasks');
+}
+
+function processDump(){
+  const area=document.getElementById('dump-ta');
+  const lines=area.value.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){showToast('Nothing to add');return;}
+  lines.forEach(l=>ST.tasks.push({id:Date.now()+Math.random(),text:l,done:false,addedAt:Date.now()}));
+  area.value='';
+  save();renderFocus();renderTasks();
+  showToast(`${lines.length} task${lines.length>1?'s':''} added`);
+  nav('focus');
+}
+
+function promoteTask(id){
+  const i=ST.tasks.findIndex(t=>t.id===id&&!t.done);
+  if(i<0)return;
+  const t=ST.tasks.splice(i,1)[0];
+  const fa=ST.tasks.findIndex(t2=>!t2.done);
+  if(fa>=0)ST.tasks.splice(fa,0,t); else ST.tasks.unshift(t);
+  save();renderTasks();renderFocus();
+  nav('focus');
+}
+
+function removeTask(id,e){
+  e.stopPropagation();
+  ST.tasks=ST.tasks.filter(t=>t.id!==id);
+  save();renderTasks();renderFocus();
+}
+
+// ══ RENDER ═══════════════════════════════════════════
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderFocus(){
+  const t=focused(); const a=active();
+  const txt=document.getElementById('focus-txt');
+  const badge=document.getElementById('task-badge');
+  const sub=document.getElementById('focus-sub');
+  const skipB=document.getElementById('skip-btn');
+  const doneB=document.getElementById('done-btn');
+  if(t){
+    txt.innerHTML=`<span>${esc(t.text)}</span>`;
+    txt.className='task-txt';
+    badge.textContent=a.length>1?`task 1 of ${a.length}`:'your one task right now';
+    sub.textContent='focus on this. nothing else.';
+    skipB.disabled=false;skipB.style.opacity='1';
+    doneB.disabled=false;
+  }else{
+    txt.innerHTML=`<span class="task-empty">All clear! Add tasks in the Tasks tab, or use Brain Dump ⚡ to capture everything at once.</span>`;
+    txt.className='task-txt';
+    badge.textContent='queue empty';
+    sub.textContent='your focus companion';
+    skipB.disabled=true;skipB.style.opacity='0.38';
+    doneB.disabled=true;
+  }
+  // Streak
+  document.getElementById('streak-n').textContent=ST.stats.streak;
+  const dots=document.getElementById('streak-dots');
+  if(dots){
+    dots.innerHTML='';
+    for(let i=6;i>=0;i--){
+      const d=new Date(Date.now()-i*86400000).toDateString();
+      const el=document.createElement('div');
+      el.className='s-dot'+(ST.stats.history[d]?' lit':'');
+      dots.appendChild(el);
+    }
+  }
+}
+
+function renderTasks(){
+  const ql=document.getElementById('q-list');
+  const dl=document.getElementById('done-list');
+  const dLbl=document.getElementById('done-lbl');
+  const sub=document.getElementById('tasks-sub');
+  const a=active(); const d=dones();
+  sub.textContent=`${a.length} remaining`;
+  ql.innerHTML=a.length?a.map((t,i)=>`
+    <div class="t-item${i===0?' focused':''}" onclick="promoteTask(${t.id})">
+      <div class="t-check">${i===0?'◉':''}</div>
+      <div class="t-txt">${esc(t.text)}</div>
+      ${i===0?'<span class="focus-tag">focused</span>':''}
+      <span class="t-rm" onclick="removeTask(${t.id},event)">✕</span>
+    </div>`).join(''):'<div style="padding:28px;text-align:center;color:var(--text3);font-size:14px">Queue is empty. Add a task below or use Brain Dump.</div>';
+  dLbl.style.display=d.length?'':'none';
+  dl.innerHTML=d.slice().reverse().slice(0,6).map(t=>`
+    <div class="t-item done">
+      <div class="t-check">✓</div>
+      <div class="t-txt">${esc(t.text)}</div>
+    </div>`).join('');
+}
+
+function renderStats(){
+  document.getElementById('st-today').textContent=ST.stats.today;
+  document.getElementById('st-total').textContent=ST.stats.total;
+  document.getElementById('st-streak').textContent=ST.stats.streak;
+  document.getElementById('st-focus').textContent=Math.round(ST.stats.focusMin);
+  const hm=document.getElementById('heatmap');
+  if(hm){
+    hm.innerHTML='';
+    for(let i=27;i>=0;i--){
+      const d=new Date(Date.now()-i*86400000).toDateString();
+      const n=ST.stats.history[d]||0;
+      const el=document.createElement('div');
+      el.className='hm-cell'+(n>=6?' d4':n>=3?' d3':n>=1?' d2':'');
+      el.title=`${d}: ${n} tasks`;
+      hm.appendChild(el);
+    }
+  }
+  const rl=document.getElementById('recent-list');
+  const done=dones().slice().reverse().slice(0,6);
+  if(rl) rl.innerHTML=done.length?done.map(t=>`
+    <div class="pb-row"><span class="pb-n">${esc(t.text)}</span><span class="pb-v">✓</span></div>`).join(''):'<div style="padding:14px;font-size:13px;color:var(--text3)">Complete tasks to see them here.</div>';
+  document.getElementById('daily-mot').textContent=`"${MOTS[new Date().getDay()%MOTS.length]}"`;
+}
+
+// ══ TIMER ════════════════════════════════════════════
+let timerInt=null;
+const FULL=2*Math.PI*70; // ~440
+
+function setPreset(mins,btn){
+  if(ST.timer.running)return;
+  document.querySelectorAll('.preset').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  ST.timer.preset=mins; ST.timer.secsLeft=mins*60;
+  updateTimer();
+}
+
+function updateTimer(){
+  const s=ST.timer.secsLeft;
+  const m=Math.floor(s/60),sec=s%60;
+  const el=document.getElementById('ring-time');
+  if(el)el.textContent=`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  const ring=document.getElementById('ring');
+  if(ring){
+    const frac=s/(ST.timer.preset*60);
+    ring.style.strokeDashoffset=FULL*(1-frac);
+    ring.classList.toggle('alert',s<=60&&ST.timer.running);
+  }
+  const sb=document.getElementById('skip-t-btn');
+  if(sb){sb.disabled=!ST.timer.running;sb.style.opacity=ST.timer.running?'1':'0.38';}
+}
+
+function toggleTimer(){
+  if(ST.timer.running)stopTimer(); else startTimer();
+}
+
+function startTimer(){
+  if(!focused()&&ST.timer.mode==='focus'){showToast('Add a task first');return;}
+  ST.timer.running=true;
+  document.getElementById('play-btn').textContent='⏸';
+  document.getElementById('presets').style.opacity='0.4';
+  document.getElementById('presets').style.pointerEvents='none';
+  timerInt=setInterval(tick,1000);
+}
+
+function stopTimer(){
+  ST.timer.running=false;
+  clearInterval(timerInt);timerInt=null;
+  document.getElementById('play-btn').textContent='▶';
+  document.getElementById('presets').style.opacity='1';
+  document.getElementById('presets').style.pointerEvents='all';
+}
+
+function resetTimer(full=true){
+  stopTimer();
+  if(full){ST.timer.secsLeft=ST.timer.preset*60;ST.timer.mode='focus';}
+  const lbl=document.getElementById('ring-lbl');
+  if(lbl)lbl.textContent=ST.timer.mode;
+  updateTimer();
+}
+
+function skipBreak(){ resetTimer(); }
+
+function tick(){
+  if(ST.timer.secsLeft<=0){timerDone();return;}
+  ST.timer.secsLeft--;
+  if(ST.timer.mode==='focus'&&ST.timer.secsLeft%60===0){ST.stats.focusMin++;save();}
+  updateTimer();
+}
+
+function timerDone(){
+  stopTimer();
+  if(navigator.vibrate)navigator.vibrate([100,50,100,50,200]);
+  if(ST.timer.mode==='focus'){
+    ST.stats.focusMin+=Math.ceil(ST.timer.preset);save();
+    if(ST.settings.autobreak){
+      ST.timer.secsLeft=5*60;ST.timer.mode='break';
+      document.getElementById('ring-lbl').textContent='break';
+      updateTimer();startTimer();
+    }else{
+      showToast('Focus done! Great work.');
+      ST.timer.secsLeft=0;updateTimer();
+    }
+  }else{
+    showToast('Break over! Ready to focus?');
+    ST.timer.secsLeft=ST.timer.preset*60;
+    ST.timer.mode='focus';
+    document.getElementById('ring-lbl').textContent='focus';
+    updateTimer();
+  }
+}
+
+// ══ CELEBRATION ══════════════════════════════════════
+function showCelebrate(){
+  const c=CELS[Math.floor(Math.random()*CELS.length)];
+  document.getElementById('cel-emoji').textContent=c.e;
+  document.getElementById('cel-title').textContent=c.t;
+  document.getElementById('cel-sub').textContent=c.s;
+  document.getElementById('cel-overlay').classList.add('show');
+}
+function closeCel(){
+  document.getElementById('cel-overlay').classList.remove('show');
+}
+function closeCelPlayGame(){
+  closeCel();
+  if(ST.settings.game)showGame();
+}
+
+// ══ MINI GAME — BUBBLE POP ═══════════════════════════
+let gScore=0,gTimer=20,gInterval=null,gSpawnInt=null,gRunning=false;
+
+function showGame(){
+  document.getElementById('game-overlay').classList.add('show');
+  document.getElementById('g-result').textContent='';
+  document.getElementById('g-play-btn').textContent='Play Again ↺';
+  resetGameUI();
+}
+
+function resetGameUI(){
+  gScore=0;gTimer=20;gRunning=false;
+  document.getElementById('g-score').textContent='0';
+  document.getElementById('g-timer').textContent='20s';
+  document.getElementById('bubble-field').innerHTML='';
+  document.getElementById('g-result').textContent='';
+}
+
+function startGame(){
+  resetGameUI();
+  gRunning=true;
+  document.getElementById('g-play-btn').textContent='Playing…';
+  document.getElementById('g-result').textContent='';
+  spawnBubbles();
+  gSpawnInt=setInterval(spawnBubbles,1400);
+  gInterval=setInterval(tickGame,1000);
+}
+
+function spawnBubbles(){
+  const field=document.getElementById('bubble-field');
+  if(!field||!gRunning)return;
+  const count=Math.floor(Math.random()*2)+1;
+  for(let i=0;i<count;i++){
+    const b=document.createElement('div');
+    b.className='bubble';
+    const sz=44+Math.random()*36;
+    const colors=['rgba(42,157,143,.85)','rgba(82,183,136,.85)','rgba(91,191,179,.85)','rgba(122,175,134,.85)','rgba(44,157,200,.80)'];
+    const col=colors[Math.floor(Math.random()*colors.length)];
+    b.style.cssText=`
+      width:${sz}px;height:${sz}px;
+      background:${col};
+      left:${4+Math.random()*84}%;
+      top:${4+Math.random()*80}%;
+      animation-duration:${2+Math.random()*2}s;
+      animation-delay:${Math.random()*0.5}s;
+    `;
+    const emoji=BUBBLES_EMOJIS[Math.floor(Math.random()*BUBBLES_EMOJIS.length)];
+    b.textContent=emoji;
+    b.style.fontSize=`${sz*0.45}px`;
+    b.style.lineHeight=`${sz}px`;
+    b.style.textAlign='center';
+    b.style.display='flex';
+    b.style.alignItems='center';
+    b.style.justifyContent='center';
+    b.addEventListener('pointerdown',(e)=>{
+      e.preventDefault();
+      if(!gRunning||b.classList.contains('popped'))return;
+      b.classList.add('popped');
+      gScore++;
+      document.getElementById('g-score').textContent=gScore;
+      // Points burst
+      const burst=document.createElement('div');
+      burst.textContent='+1';
+      burst.style.cssText=`position:absolute;left:${b.offsetLeft+sz/2}px;top:${b.offsetTop}px;color:var(--sand);font-weight:700;font-size:18px;pointer-events:none;transition:all .6s;opacity:1;z-index:10`;
+      field.appendChild(burst);
+      requestAnimationFrame(()=>{burst.style.transform='translateY(-40px)';burst.style.opacity='0';});
+      setTimeout(()=>{burst.remove();b.remove();},300);
+    });
+    field.appendChild(b);
+    // Auto remove after 5s if not popped
+    setTimeout(()=>{if(!b.classList.contains('popped'))b.remove();},5000);
+  }
+}
+
+function tickGame(){
+  gTimer--;
+  document.getElementById('g-timer').textContent=`${gTimer}s`;
+  if(gTimer<=0) endGame();
+}
+
+function endGame(){
+  gRunning=false;
+  clearInterval(gInterval);
+  clearInterval(gSpawnInt);
+  document.getElementById('bubble-field').innerHTML='';
+  const msg=gScore>=15?`🏆 Amazing! ${gScore} bubbles!`:
+             gScore>=8?`⭐ Great! ${gScore} popped!`:
+             `🌿 ${gScore} popped — nice try!`;
+  document.getElementById('g-result').textContent=msg;
+  document.getElementById('g-play-btn').textContent='Play Again ↺';
+}
+
+function closeGame(){
+  gRunning=false;
+  clearInterval(gInterval);
+  clearInterval(gSpawnInt);
+  document.getElementById('game-overlay').classList.remove('show');
+}
+
+// ══ SETTINGS ═════════════════════════════════════════
+function toggleSet(key){
+  ST.settings[key]=!ST.settings[key];
+  document.getElementById('tog-'+key)?.classList.toggle('on',ST.settings[key]);
+  save();
+}
+function applySettings(){
+  Object.entries(ST.settings).forEach(([k,v])=>{
+    document.getElementById('tog-'+k)?.classList.toggle('on',v);
+  });
+}
+function doResetStreak(){
+  if(confirm('Reset streak to zero?')){ST.stats.streak=0;ST.stats.lastDate='';save();renderFocus();showToast('Streak reset');}
+}
+function doClearAll(){
+  if(confirm('Clear ALL data? This cannot be undone.')){
+    localStorage.removeItem('onetask-v2');localStorage.removeItem('onetask');location.reload();
+  }
+}
+
+// ══ TOAST ════════════════════════════════════════════
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ══ PWA INSTALL ═══════════════════════════════════════
+let dp=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();dp=e;
+  document.getElementById('inst-bar').classList.add('show');
+});
+document.getElementById('inst-btn').addEventListener('click',async()=>{
+  if(!dp)return;dp.prompt();await dp.userChoice;dp=null;
+  document.getElementById('inst-bar').classList.remove('show');
+});
+document.getElementById('inst-x').addEventListener('click',()=>{
+  document.getElementById('inst-bar').classList.remove('show');
+});
+
+// ══ SERVICE WORKER ════════════════════════════════════
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+
+// ══ INIT ══════════════════════════════════════════════
+load();applySettings();updateTimer();renderFocus();renderTasks();
+const p=new URLSearchParams(location.search);
+if(p.get('action')==='add'){nav('tasks');setTimeout(()=>document.getElementById('add-in')?.focus(),400);}
+if(p.get('action')==='dump') nav('dump');
+</script>
+</body>
+</html>
