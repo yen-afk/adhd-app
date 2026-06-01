@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -250,7 +250,7 @@ html,body {
 .add-in {
   flex:1; background:var(--bg3); border:0.5px solid var(--border2);
   border-radius:var(--r-sm); padding:11px 14px;
-  font-size:15px; color:var(--text); outline:none;
+  font-size:16px; color:var(--text); outline:none;
   font-family:inherit; -webkit-appearance:none;
 }
 .add-in::placeholder { color:var(--text3); }
@@ -756,7 +756,7 @@ function addTask(txt){
   const t=(txt||inp?.value||'').trim();
   if(!t)return;
   ST.tasks.push({id:Date.now()+Math.random(),text:t,done:false,addedAt:Date.now()});
-  if(inp)inp.value='';
+  if(inp){inp.value='';inp.blur();}
   save();renderFocus();renderTasks();
   showToast('Task added');
 }
@@ -1015,6 +1015,71 @@ function closeCelPlayGame(){
 // ══ MINI GAME — BUBBLE POP ═══════════════════════════
 let gScore=0,gTimer=15,gInterval=null,gSpawnInt=null,gRunning=false,gLevel=1;
 
+
+// ══ SOUND ENGINE (Web Audio API — no files needed) ════════════
+function createAudio(){
+  try{ return new (window.AudioContext||window.webkitAudioContext)(); }
+  catch(e){ return null; }
+}
+let _ac = null;
+function getAC(){
+  if(!_ac) _ac = createAudio();
+  if(_ac && _ac.state==='suspended') _ac.resume();
+  return _ac;
+}
+
+function playTone(freq, type='sine', dur=0.12, vol=0.3, delay=0){
+  const ac = getAC(); if(!ac) return;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ac.currentTime+delay);
+  gain.gain.setValueAtTime(vol, ac.currentTime+delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+delay+dur);
+  osc.start(ac.currentTime+delay);
+  osc.stop(ac.currentTime+delay+dur+0.05);
+}
+
+function soundPop(isBonus, isBomb){
+  if(isBomb){
+    // Bomb: low thud
+    playTone(80,'sawtooth',0.15,0.35);
+    playTone(60,'square',0.10,0.20,0.05);
+  } else if(isBonus){
+    // Bonus star: bright ascending chord
+    playTone(523,'sine',0.12,0.28);
+    playTone(659,'sine',0.12,0.22,0.06);
+    playTone(784,'sine',0.14,0.28,0.12);
+  } else {
+    // Normal pop: satisfying bubble burst
+    playTone(400+Math.random()*200,'sine',0.08,0.25);
+  }
+}
+
+function soundCountdown(n){
+  // Tick gets higher and more urgent each second
+  const freq = 330 + (10-n)*22;
+  playTone(freq,'square',0.06,0.18);
+}
+
+function soundGameEnd(score){
+  if(score>=18){
+    // Win fanfare
+    [523,659,784,1047].forEach((f,i)=>playTone(f,'sine',0.18,0.28,i*0.12));
+  } else if(score>=10){
+    // OK: short ascending
+    [440,554,659].forEach((f,i)=>playTone(f,'sine',0.14,0.22,i*0.10));
+  } else {
+    // Low score: descending
+    [330,262,196].forEach((f,i)=>playTone(f,'triangle',0.14,0.22,i*0.10));
+  }
+}
+
+function soundGameStart(){
+  [330,440,523].forEach((f,i)=>playTone(f,'sine',0.10,0.20,i*0.08));
+}
+// ════════════════════════════════════════════════════════════════
 function showGame(){
   document.getElementById('game-overlay').classList.add('show');
   document.getElementById('g-result').textContent='';
@@ -1033,6 +1098,7 @@ function resetGameUI(){
 function startGame(){
   resetGameUI();
   gRunning=true;
+  soundGameStart();
   document.getElementById('g-play-btn').textContent='Playing…';
   document.getElementById('g-result').textContent='';
   spawnBubbles();
@@ -1083,6 +1149,7 @@ function spawnBubbles(){
       e.preventDefault();
       if(!gRunning||b.classList.contains('popped'))return;
       b.classList.add('popped');
+      soundPop(isBonus,isBomb);
       const pts=isBonus?3:isBomb?-1:1;
       gScore=Math.max(0,gScore+pts);
       document.getElementById('g-score').textContent=gScore;
@@ -1106,6 +1173,8 @@ function tickGame(){
   const urgency=1-gTimer/15;
   document.getElementById('g-timer').textContent=`${gTimer}s`;
   document.getElementById('g-timer').style.color=gTimer<=5?'#FF6060':gTimer<=8?'#D4A83C':'';
+  // Countdown tick sound for last 10 seconds
+  if(gTimer<=10 && gTimer>0) soundCountdown(gTimer);
   // Speed up spawn interval as time runs out
   if(gTimer===10){
     clearInterval(gSpawnInt);
@@ -1121,6 +1190,7 @@ function endGame(){
   gRunning=false;
   clearInterval(gInterval);
   clearInterval(gSpawnInt);
+  soundGameEnd(gScore);
   document.getElementById('bubble-field').innerHTML='';
   const msg=gScore>=25?`🏆 Legend! ${gScore} pts!`:
              gScore>=18?`🔥 Amazing! ${gScore} pts!`:
