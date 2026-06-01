@@ -240,9 +240,11 @@ html,body {
 
 /* ── ADD BAR ─────────────────────────────────────── */
 .add-bar-wrap {
-  position:fixed; bottom:0; left:0; right:0; width:100%;
+  position:sticky; bottom:0; left:0; right:0; width:100%;
   background:var(--bg2); border-top:0.5px solid var(--border);
-  padding:11px 16px calc(var(--safe-bot)+11px); z-index:20;
+  padding:11px 16px calc(var(--safe-bot)+11px);
+  margin-top:auto;
+  z-index:2;
 }
 .add-bar { display:flex; gap:10px; align-items:center; }
 .add-in {
@@ -1011,7 +1013,7 @@ function closeCelPlayGame(){
 }
 
 // ══ MINI GAME — BUBBLE POP ═══════════════════════════
-let gScore=0,gTimer=20,gInterval=null,gSpawnInt=null,gRunning=false;
+let gScore=0,gTimer=15,gInterval=null,gSpawnInt=null,gRunning=false,gLevel=1;
 
 function showGame(){
   document.getElementById('game-overlay').classList.add('show');
@@ -1021,7 +1023,7 @@ function showGame(){
 }
 
 function resetGameUI(){
-  gScore=0;gTimer=20;gRunning=false;
+  gScore=0;gTimer=15;gRunning=false;gLevel=1;
   document.getElementById('g-score').textContent='0';
   document.getElementById('g-timer').textContent='20s';
   document.getElementById('bubble-field').innerHTML='';
@@ -1034,33 +1036,46 @@ function startGame(){
   document.getElementById('g-play-btn').textContent='Playing…';
   document.getElementById('g-result').textContent='';
   spawnBubbles();
-  gSpawnInt=setInterval(spawnBubbles,1400);
+  gSpawnInt=setInterval(spawnBubbles,1100);
   gInterval=setInterval(tickGame,1000);
 }
 
 function spawnBubbles(){
   const field=document.getElementById('bubble-field');
   if(!field||!gRunning)return;
-  const count=Math.floor(Math.random()*2)+1;
+  // More bubbles as time runs out
+  const urgency=1-gTimer/15;
+  const count=Math.floor(Math.random()*3)+Math.floor(urgency*2)+1;
   for(let i=0;i<count;i++){
     const b=document.createElement('div');
-    b.className='bubble';
-    const sz=44+Math.random()*36;
-    const colors=['rgba(42,157,143,.85)','rgba(82,183,136,.85)','rgba(91,191,179,.85)','rgba(122,175,134,.85)','rgba(44,157,200,.80)'];
-    const col=colors[Math.floor(Math.random()*colors.length)];
+    // Bonus bubble (gold, worth 3pts) — 15% chance
+    const isBonus=Math.random()<0.15;
+    // Bomb bubble (red, -1pt) — 10% chance, increases with level
+    const isBomb=Math.random()<(0.08+urgency*0.08);
+    b.className='bubble'+(isBonus?' bonus':'')+(isBomb?' bomb':'');
+    // Bubbles shrink as level gets harder
+    const sz=isBonus?52:(isBomb?38:Math.max(28,52-urgency*18+Math.random()*20));
+    let col;
+    if(isBonus) col='rgba(212,168,60,.92)';
+    else if(isBomb) col='rgba(220,60,60,.88)';
+    else{
+      const colors=['rgba(42,157,143,.85)','rgba(82,183,136,.85)','rgba(91,191,179,.85)','rgba(122,175,134,.85)','rgba(44,157,200,.80)'];
+      col=colors[Math.floor(Math.random()*colors.length)];
+    }
+    // Faster float as urgency increases
+    const floatSpeed=Math.max(0.6,2-urgency*1.2)+Math.random()*0.8;
     b.style.cssText=`
       width:${sz}px;height:${sz}px;
       background:${col};
       left:${4+Math.random()*84}%;
       top:${4+Math.random()*80}%;
-      animation-duration:${2+Math.random()*2}s;
-      animation-delay:${Math.random()*0.5}s;
+      animation-duration:${floatSpeed}s;
+      animation-delay:${Math.random()*0.3}s;
+      border:${isBonus?'2px solid rgba(255,220,80,.9)':isBomb?'2px solid rgba(255,100,100,.7)':'none'};
     `;
-    const emoji=BUBBLES_EMOJIS[Math.floor(Math.random()*BUBBLES_EMOJIS.length)];
+    const emoji=isBonus?'⭐':isBomb?'💣':BUBBLES_EMOJIS[Math.floor(Math.random()*BUBBLES_EMOJIS.length)];
     b.textContent=emoji;
     b.style.fontSize=`${sz*0.45}px`;
-    b.style.lineHeight=`${sz}px`;
-    b.style.textAlign='center';
     b.style.display='flex';
     b.style.alignItems='center';
     b.style.justifyContent='center';
@@ -1068,25 +1083,37 @@ function spawnBubbles(){
       e.preventDefault();
       if(!gRunning||b.classList.contains('popped'))return;
       b.classList.add('popped');
-      gScore++;
+      const pts=isBonus?3:isBomb?-1:1;
+      gScore=Math.max(0,gScore+pts);
       document.getElementById('g-score').textContent=gScore;
-      // Points burst
       const burst=document.createElement('div');
-      burst.textContent='+1';
-      burst.style.cssText=`position:absolute;left:${b.offsetLeft+sz/2}px;top:${b.offsetTop}px;color:var(--sand);font-weight:700;font-size:18px;pointer-events:none;transition:all .6s;opacity:1;z-index:10`;
+      burst.textContent=isBonus?'+3':isBomb?'-1':'+1';
+      const burstCol=isBonus?'#D4A83C':isBomb?'#FF6060':'var(--sand)';
+      burst.style.cssText=`position:absolute;left:${b.offsetLeft+sz/2}px;top:${b.offsetTop}px;color:${burstCol};font-weight:700;font-size:${isBonus?22:16}px;pointer-events:none;transition:all .5s;opacity:1;z-index:10`;
       field.appendChild(burst);
-      requestAnimationFrame(()=>{burst.style.transform='translateY(-40px)';burst.style.opacity='0';});
+      requestAnimationFrame(()=>{burst.style.transform='translateY(-44px)';burst.style.opacity='0';});
       setTimeout(()=>{burst.remove();b.remove();},300);
     });
     field.appendChild(b);
-    // Auto remove after 5s if not popped
-    setTimeout(()=>{if(!b.classList.contains('popped'))b.remove();},5000);
+    // Bubbles disappear faster as urgency grows
+    const lifespan=Math.max(1200,3500-urgency*2000);
+    setTimeout(()=>{if(!b.classList.contains('popped')&&b.parentNode)b.remove();},lifespan);
   }
 }
 
 function tickGame(){
   gTimer--;
+  const urgency=1-gTimer/15;
   document.getElementById('g-timer').textContent=`${gTimer}s`;
+  document.getElementById('g-timer').style.color=gTimer<=5?'#FF6060':gTimer<=8?'#D4A83C':'';
+  // Speed up spawn interval as time runs out
+  if(gTimer===10){
+    clearInterval(gSpawnInt);
+    gSpawnInt=setInterval(spawnBubbles,900);
+  } else if(gTimer===5){
+    clearInterval(gSpawnInt);
+    gSpawnInt=setInterval(spawnBubbles,600);
+  }
   if(gTimer<=0) endGame();
 }
 
@@ -1095,9 +1122,11 @@ function endGame(){
   clearInterval(gInterval);
   clearInterval(gSpawnInt);
   document.getElementById('bubble-field').innerHTML='';
-  const msg=gScore>=15?`🏆 Amazing! ${gScore} bubbles!`:
-             gScore>=8?`⭐ Great! ${gScore} popped!`:
-             `🌿 ${gScore} popped — nice try!`;
+  const msg=gScore>=25?`🏆 Legend! ${gScore} pts!`:
+             gScore>=18?`🔥 Amazing! ${gScore} pts!`:
+             gScore>=10?`⭐ Great! ${gScore} pts!`:
+             gScore>=5?`🌿 ${gScore} pts — keep going!`:
+             `💦 ${gScore} pts — watch the bombs!`;
   document.getElementById('g-result').textContent=msg;
   document.getElementById('g-play-btn').textContent='Play Again ↺';
 }
