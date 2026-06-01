@@ -763,7 +763,8 @@ function addTask(txt){
 
 function skipTask(){
   const a=active();
-  if(a.length<2){showToast('Nothing to skip to');return;}
+  if(a.length<1){showToast('No tasks to skip');return;}
+  if(a.length<2){showToast('Only one task — add more to skip');return;}
   const i=ST.tasks.indexOf(a[0]);
   ST.tasks.splice(i,1);
   const firstActive=ST.tasks.findIndex(t=>!t.done);
@@ -947,6 +948,7 @@ function startTimer(){
   document.getElementById('presets').style.opacity='0.4';
   document.getElementById('presets').style.pointerEvents='none';
   timerInt=setInterval(tick,1000);
+  updateTimer();  // enable skip-t-btn immediately
 }
 
 function stopTimer(){
@@ -955,6 +957,7 @@ function stopTimer(){
   document.getElementById('play-btn').textContent='▶';
   document.getElementById('presets').style.opacity='1';
   document.getElementById('presets').style.pointerEvents='all';
+  updateTimer();  // disable skip-t-btn when timer stops
 }
 
 function resetTimer(full=true){
@@ -965,7 +968,25 @@ function resetTimer(full=true){
   updateTimer();
 }
 
-function skipBreak(){ resetTimer(); }
+function skipBreak(){
+  // Skip current timer phase — jump to next
+  stopTimer();
+  if(ST.timer.mode==='focus'){
+    // Was in focus — skip to break
+    ST.timer.secsLeft=5*60;
+    ST.timer.mode='break';
+    const lbl=document.getElementById('ring-lbl');
+    if(lbl)lbl.textContent='break';
+  } else {
+    // Was in break — skip back to focus
+    ST.timer.secsLeft=ST.timer.preset*60;
+    ST.timer.mode='focus';
+    const lbl=document.getElementById('ring-lbl');
+    if(lbl)lbl.textContent='focus';
+  }
+  updateTimer();
+  showToast(ST.timer.mode==='break'?'Skipped to break':'Skipped to focus');
+}
 
 function tick(){
   if(ST.timer.secsLeft<=0){timerDone();return;}
